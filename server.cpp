@@ -1,0 +1,120 @@
+#include "server.hpp"
+
+Server::Server() {
+    FD_ZERO(&_master);  // clear the set
+}
+
+Server::~Server() {
+    WSACleanup();
+}
+
+void Server::InitializeWinsock() {
+    WSADATA ws;
+    if (WSAStartup(MAKEWORD(2, 2), &ws) == -1) {
+        std::cout << "WSA Failed to Initialize\n";
+        exit(1);
+    }
+    else {
+        std::cout << "WSA opened Successfully\n";
+    }
+}
+
+void Server::CreateSocket() {
+    _server_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
+    if (_server_fd == -1) {
+        std::cout << "Failed to Initialize the socket\n";
+        exit(1);
+    }
+    else {
+        std::cout << "The socket opened Successfully\n";
+    }
+}
+
+void Server::BindSocket() {
+    _serverAddr.sin_family = AF_INET;
+    _serverAddr.sin_port = htons(PORT);
+    _serverAddr.sin_addr.s_addr = INADDR_ANY;
+
+    int bindResult = bind(_server_fd, (sockaddr*)&_serverAddr, sizeof(sockaddr));
+    if (bindResult == -1) {
+        std::cout << "Failed to bind to local server\n";
+        exit(1);
+    }
+    else {
+        std::cout << "Successfully bind to local port\n";
+    }
+}
+
+void Server::StartListening() {
+    int listenResult = listen(_server_fd, 5);
+    if (listenResult == -1) {
+        std::cout << "Failed to listen to local server\n";
+        exit(1);
+    }
+    else {
+        std::cout << "Listening...\n";
+    }
+    FD_SET(_server_fd, &_master); // Add the listening socket to the set
+}
+
+void Server::HandleConnections() {
+    while (true) {
+        fd_set copy = _master;
+        // _master contains all the clients' file descriptors, copy contains all the active fd's after calling select()
+        int activeSocketCount = select(FD_SETSIZE, &copy, nullptr, nullptr, nullptr);
+        for (int i = 0; i < activeSocketCount; i++) {
+            SOCKET sock = copy.fd_array[i];
+            if (FD_ISSET(_server_fd, &copy)) {
+                // Accept a new connection
+                SOCKET client = accept(sock, (sockaddr*)&client, nullptr);
+                // Add the new connection to the list of clients
+                FD_SET(client, &_master);
+                DisplayActiveClients();
+                // Send a welcome message
+                const char* welcomeMsg = "Start a chat with the connected users\r\n";
+                send(client, welcomeMsg, strlen(welcomeMsg), 0);
+            }
+            else {
+                // Accept a new message
+                char buf[BUFFER];
+                memset(&buf, 0, BUFFER);
+
+                int bytes = recv(sock, buf, BUFFER, 0);
+
+                // Drop the Client
+                if (bytes == 0) {
+                    closesocket(sock);
+                    FD_CLR(sock, &_master);
+                    DisplayActiveClients();
+                }
+                else {
+                    // Send message to other clients
+                    for (int i = 0; i < _master.fd_count; i++) {
+                        SOCKET outSocket = _master.fd_array[i];
+                        send(outSocket, buf, bytes, 0);
+                    }
+                }
+            }
+        }
+    }
+}
+
+void Server::DisplayActiveClients() {
+    std::cout << "The connected clients:\n";
+    if (_master.fd_count == 0) {
+        std::cout << "None\n";
+    }
+    for (int i = 0; i < _master.fd_count; i++) {
+        if (_master.fd_array[i] != _server_fd) {
+            std::cout << "Socket fd is: " << _master.fd_array[i] << std::endl;
+        }
+    }
+}
+
+void Server::Start() {
+    InitializeWinsock();
+    CreateSocket();
+    BindSocket();
+    StartListening();
+    HandleConnections();
+}
