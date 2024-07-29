@@ -1,4 +1,6 @@
 #include "server.hpp"
+#include "Message.hpp"
+
 
 Server::Server() {
     FD_ZERO(&_master);  // clear the set
@@ -60,44 +62,48 @@ void Server::StartListening() {
 void Server::HandleConnections() {
     while (true) {
         fd_set copy = _master;
-        // _master contains all the clients' file descriptors, copy contains all the active fd's after calling select()
         int activeSocketCount = select(FD_SETSIZE, &copy, nullptr, nullptr, nullptr);
         for (int i = 0; i < activeSocketCount; i++) {
             SOCKET sock = copy.fd_array[i];
             if (FD_ISSET(_server_fd, &copy)) {
                 // Accept a new connection
                 SOCKET client = accept(sock, (sockaddr*)&client, nullptr);
-                // Add the new connection to the list of clients
                 FD_SET(client, &_master);
                 DisplayActiveClients();
-                // Send a welcome message
-                const char* welcomeMsg = "Start a chat with the connected users\r\n";
-                send(client, welcomeMsg, strlen(welcomeMsg), 0);
-            }
-            else {
-                // Accept a new message
+            } else {
+                // Receive a new message
                 char buf[BUFFER];
                 memset(&buf, 0, BUFFER);
 
                 int bytes = recv(sock, buf, BUFFER, 0);
 
-                // Drop the Client
                 if (bytes == 0) {
+                    // Drop the client
                     closesocket(sock);
                     FD_CLR(sock, &_master);
                     DisplayActiveClients();
-                }
-                else {
-                    // Send message to other clients
+                } else {
+                    // Create a Message instance and convert it to string
+                    std::uint32_t messageSize = bytes;
+                    std::uint64_t timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+                    std::string messageContent(buf, bytes);
+
+                    Message message(messageSize, timestamp, messageContent);
+                    std::string messageStr = message.toString();
+
+                    // Send the formatted message to other clients
                     for (int i = 0; i < _master.fd_count; i++) {
                         SOCKET outSocket = _master.fd_array[i];
-                        send(outSocket, buf, bytes, 0);
+                        if (outSocket != _server_fd && outSocket != sock) {
+                            send(outSocket, messageStr.c_str(), messageStr.size(), 0);
+                        }
                     }
                 }
             }
         }
     }
 }
+
 
 void Server::DisplayActiveClients() {
     std::cout << "The connected clients:\n";
@@ -110,7 +116,6 @@ void Server::DisplayActiveClients() {
         }
     }
 }
-
 void Server::Start() {
     InitializeWinsock();
     CreateSocket();
