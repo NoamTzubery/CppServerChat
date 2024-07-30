@@ -12,7 +12,7 @@ Server::~Server() {
 
 void Server::InitializeWinsock() {
     WSADATA ws;
-    if (WSAStartup(MAKEWORD(2, 2), &ws) == -1) {
+    if (WSAStartup(MAKEWORD(2, 2), &ws) == FAILED) {
         std::cout << "WSA Failed to Initialize\n";
         exit(1);
     }
@@ -23,7 +23,7 @@ void Server::InitializeWinsock() {
 
 void Server::CreateSocket() {
     _server_fd = socket(AF_INET, SOCK_STREAM, IPPROTO_TCP);
-    if (_server_fd == -1) {
+    if (_server_fd == FAILED) {
         std::cout << "Failed to Initialize the socket\n";
         exit(1);
     }
@@ -38,7 +38,7 @@ void Server::BindSocket() {
     _serverAddr.sin_addr.s_addr = INADDR_ANY;
 
     int bindResult = bind(_server_fd, (sockaddr*)&_serverAddr, sizeof(sockaddr));
-    if (bindResult == -1) {
+    if (bindResult == FAILED) {
         std::cout << "Failed to bind to local server\n";
         exit(1);
     }
@@ -48,8 +48,8 @@ void Server::BindSocket() {
 }
 
 void Server::StartListening() {
-    int listenResult = listen(_server_fd, 5);
-    if (listenResult == -1) {
+    int listenResult = listen(_server_fd, LISTENINGS_NUMBER);
+    if (listenResult == FAILED) {
         std::cout << "Failed to listen to local server\n";
         exit(1);
     }
@@ -74,11 +74,8 @@ void Server::HandleConnections() {
                 // Receive a new message
                 char buf[BUFFER];
                 memset(&buf, 0, BUFFER);
-
                 int bytes = recv(sock, buf, BUFFER, 0);
-
-                if (bytes == 0) {
-                    // Drop the client
+                if (bytes == -1) {
                     closesocket(sock);
                     FD_CLR(sock, &_master);
                     DisplayActiveClients();
@@ -116,6 +113,7 @@ void Server::DisplayActiveClients() {
         }
     }
 }
+
 void Server::Start() {
     InitializeWinsock();
     CreateSocket();
