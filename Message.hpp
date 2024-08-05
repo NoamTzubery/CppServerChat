@@ -6,7 +6,6 @@
 #include <ctime>
 #include <iomanip>
 #include <sstream>
-#include <cstring>
 
 /**
  * @class Message
@@ -20,11 +19,9 @@ public:
     /**
      * @brief Constructs a Message object.
      *
-     * @param size The size of the message content in bytes.
-     * @param timestamp The timestamp of when the message was created, in Unix time.
      * @param msg The content of the message.
      */
-    Message(std::uint32_t size, std::uint64_t timestamp, const std::string& msg);
+    Message(const std::string& msg);
 
     /**
      * @brief Converts the message to a formatted string.
@@ -36,14 +33,11 @@ public:
 private:
     std::uint32_t _size;           ///< The size of the message content in bytes.
     std::uint64_t _timestamp;      ///< The timestamp of the message, in Unix time.
-    static constexpr uint32_t BUFFER = 4025; ///< The maximum buffer size for message content.
-    char _message[BUFFER];         ///< The message content stored in a character array.
-    static constexpr char SEPARATER = '$'; ///< The char that separates the diffrent part of the message.
-    static constexpr char NULL_TERMINATOR = '\0'; ///< more clear view of null terminator
-    static constexpr int TIME_VIEW_SIZE = 2; ///< the size of the standart way of showing hours or minutes
-                                              /// (HH:MM <-- M appears twice so the lenght is 2)
+    std::string _message;          ///< The message content stored in a std::string.
 
-
+    static constexpr char SEPARATER = '$'; ///< The char that separates the different parts of the message.
+    static constexpr char NULL_TERMINATOR = '\0'; ///< More clear view of null terminator
+    static constexpr auto TIME_VIEW_SIZE = 2; ///< The standard way of showing hours or minutes (HH:MM)
 };
 
 #endif // MESSAGE_HPP

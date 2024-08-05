@@ -1,11 +1,12 @@
 #define _CRT_SECURE_NO_WARNINGS
 #include "Message.hpp"
+#include <chrono>
 
 // Constructor implementation
-Message::Message(std::uint32_t size, std::uint64_t timestamp, const std::string& msg)
-    : _size(size), _timestamp(timestamp) {
-    strncpy(_message, msg.c_str(), BUFFER);
-    _message[BUFFER - 1] = NULL_TERMINATOR; // Ensure null termination
+Message::Message(const std::string& msg) {
+    _size = static_cast<std::uint32_t>(msg.size());
+    _timestamp = std::chrono::system_clock::to_time_t(std::chrono::system_clock::now());
+    _message = msg;
 }
 
 // Method to convert message to string
